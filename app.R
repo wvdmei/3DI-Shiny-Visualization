@@ -1,5 +1,5 @@
 #
-# This is a Shiny web application.
+# This is a Shiny web application created by Willem van der Mei.
 # It displays the results of analyses of the relationship between 3 drug interactions and injury outcomes.
 # It allows for the creation of customizable volcano plots and heat maps.
 # It also allows for the export of those graphics through plotly.

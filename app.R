@@ -5,7 +5,6 @@
 # It also allows for the export of those graphics through plotly.
 #
 
-
 # Load the required packages
 library(shiny)
 library(ggplot2)
@@ -13,7 +12,6 @@ library(readr)
 library(plotly)
 library(stringr)
 library(spsComps)
-library(googlesheets4)
 
 # Create a function for volcano plot creation
 createVolcanoPlot <- function(filteredData, outcome, objectDrug, basePrecipitant, `Precipitant Drug`){

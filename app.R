@@ -76,7 +76,7 @@ ui <- fluidPage(
                              ), selected = "fold7"),
             selectizeInput(
                 'objectDrug', label = "Object Drug", choices = unique(estimates$Object),
-                options = list(maxOptions = 5)
+                options = list(maxOptions = 500), multiple = FALSE,
             ),
             uiOutput("basePrecipitant"), # This is displays depending on the value of plotType
             actionButton(inputId = "createPlot", label = "Create Plot", icon = NULL, width = NULL) # This creates the plot after values are selected,
@@ -84,7 +84,7 @@ ui <- fluidPage(
         
         mainPanel(
            plotlyOutput("plotInteractive"),
-           h3("Please click on create plot to generate initial volcano plot.")
+           h3("Please click on create plot to generate plot.")
         )
     )
 )
@@ -96,20 +96,23 @@ server <- function(input, output) {
     output$basePrecipitant <- renderUI({
         if(input$plotType %in%  "volcano"){
             selectizeInput('basePrecipitant', label = "Base Precipitant", choices = unique(estimates$Base_Precipitant),
-                           options = list(maxOptions = 5))
+                           options = list(maxOptions = 500), multiple = FALSE)
         }
     })
     
     #  Functions to update options when options are changed.
     observeEvent(input$plotType, {
-        updateSelectizeInput(inputId = 'basePrecipitant', choices = unique(estimates$Base_Precipitant), server = TRUE)
+        updateSelectizeInput(inputId = 'basePrecipitant', choices = unique(estimates$Base_Precipitant), options = list(maxOptions = 500))
     })
     toListen <- reactive({
         list(input$outcome,input$estimateRange)
     })
     observeEvent(toListen(), {
-        updateSelectizeInput(inputId = 'basePrecipitant', choices = unique(estimates$Base_Precipitant[estimates$range %in% input$estimateRange & estimates$Outcome %in% input$outcome]))
-        updateSelectizeInput(inputId = 'objectDrug', choices = unique(estimates$Object[estimates$range %in% input$estimateRange & estimates$Outcome %in% input$outcome]))
+        updateSelectizeInput(inputId = 'basePrecipitant', choices = unique(estimates$Base_Precipitant[estimates$range %in% input$estimateRange & estimates$Outcome %in% input$outcome]), options = list(maxOptions = 500))
+        updateSelectizeInput(inputId = 'objectDrug', choices = unique(estimates$Object[estimates$range %in% input$estimateRange & estimates$Outcome %in% input$outcome]), options = list(maxOptions = 500))
+    })
+    observeEvent(input$objectDrug, {
+        updateSelectizeInput(inputId = 'basePrecipitant', choices = unique(estimates$Base_Precipitant[estimates$range %in% input$estimateRange & estimates$Outcome %in% input$outcome & estimates$Object %in% input$objectDrug]), options = list(maxOptions = 500))
     })
     
     # Create data set to be used for plots based on options selected.

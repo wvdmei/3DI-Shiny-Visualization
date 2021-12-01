@@ -16,10 +16,13 @@ library(spsComps)
 # Create a function for volcano plot creation
 createVolcanoPlot <- function(filteredData, outcome, objectDrug, basePrecipitant, `Precipitant Drug`){
         outcomeFormatted <- renameOutcomes(outcome)
-        titleText <- paste0("Volcano Plot of Adjusted RRs of ", outcomeFormatted, " for ", str_to_sentence(objectDrug), ", ", str_to_sentence(basePrecipitant), ", and Precipitants")
+        dotColor <- ifelse(filteredData$log2RR > 0 & filteredData$pSB < 0.05, "red", "black")
+        titleText <- paste0("Volcano Plot of Adjusted RRs of ", outcomeFormatted, " for ", str_to_title(objectDrug), ", ", str_to_title(basePrecipitant), ", and Precipitants")
         basePlot <- ggplot(data = filteredData, aes(x = log2RR, y = log10P, label = `Precipitant Drug`)) + 
-            geom_point(color = "red") + theme_bw() + scale_y_continuous(name = "log10(1/p)") + 
-            scale_x_continuous(name = "log2(semi-Bayes shrunk adjusted rate ratio)") + ggtitle(titleText)
+            geom_point(color = dotColor) + theme_bw() + scale_y_continuous(name = "log10(1/p)") + 
+            scale_x_continuous(name = "log2(semi-Bayes shrunk adjusted rate ratio)") + ggtitle(titleText) + 
+        geom_hline(yintercept = 1.30103, color = "black", size = 1.5, linetype = "longdash") +
+            geom_vline(xintercept = 0, color = "black", size = 1.5, linetype = "longdash")
         ggplotly(basePlot, tooltip = "label")
 }
 
@@ -29,26 +32,29 @@ renameOutcomes <- function(outcome){
         return("Hip Fracture")
     }
     else if(outcome %in% "mvc"){
-        return("Motor Vehicle Collision")
+        return("Motor Vehicle Crash")
     }
     else {
-        return("Injury")
+        return("Traumatic Injury")
     }
 }
 
 # Create a function to create heat maps
 createHeatMapPlot <- function(filteredData, outcome, objectDrug){
     outcomeFormatted <- renameOutcomes(outcome)
-    titleText <- paste0("Heatmap of Adjusted RRs of ", str_to_title(outcomeFormatted), " for ", str_to_sentence(objectDrug), ", Base Precipitants, and Precipitants")
+    filteredData <- dplyr::arrange(filteredData, Base_Precipitant, Precipitant)
+    titleText <- paste0("Heatmap of Adjusted Rate Ratios of ", str_to_title(outcomeFormatted), " for ", str_to_title(objectDrug), ", Base-Pair Precipitants, and Precipitants")
     plot_ly(x = filteredData$Precipitant, y= filteredData$Base_Precipitant, 
         z = round(filteredData$SB_RR, 2), 
         type = "heatmap", 
-        colorscale= "Viridis",
+        colorscale= "RdBu",
         showscale = TRUE, hoverinfo = 'text', width = 1000, height = 1000,
-        text = ~paste0("Precipitant: ", filteredData$Precipitant, "<br>", "Base Precipitant: ", 
+        text = ~paste0("Precipitant: ", filteredData$Precipitant, "<br>", "Base-Pair Precipitant: ", 
         filteredData$Base_Precipitant, "<br>", "Rate Ratio: ", round(filteredData$SB_RR, 2))) %>% 
         layout(autosize = F, title = titleText, 
-        xaxis = list(title = "Precipitant"), yaxis = list(title = "Base Precipitant")) %>% colorbar(title = "Rate Ratio")
+        xaxis = list(title = "Precipitants"), yaxis = list(title = "Base-Pair Precipitants")) %>% colorbar(title = "Rate Ratio", limits = c(0.0, 10.0), 
+        tickvals = c(0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0), len = 1.1)
+                                                                                                
 }
 
 # Read in table with outcomes
@@ -63,16 +69,16 @@ ui <- fluidPage(
     # Sidebar with customization options and create plot button.
     sidebarLayout(
         sidebarPanel(
-            selectInput("plotType", "Type of Plot:",
+            selectInput("plotType", "Plot Type:",
                         list("Heat Map" = "heatMap", 
-                             "Volcano Plot" = "volcano"), selected = "volcano"),
-            selectInput("outcome", "Outcome:",
-                        list("Injury" = "injury", 
-                             "Motor Vehicle Collision" = "mvc", 
+                             "Volcano" = "volcano"), selected = "volcano"),
+            selectInput("outcome", "Health Outcome:",
+                        list("Traumatic Injury" = "injury", 
+                             "Motor Vehicle Crash" = "mvc", 
                              "Hip Fracture" = "hipfracture"), selected = "injury"),
-            selectInput("estimateRange", "Range:",
-                        list("7-Fold" = "fold7", 
-                             "25-Fold" = "fold25" 
+            selectInput("estimateRange", "Variance Parameter for Semi-Bayes Shrinkage",
+                        list("0.25 [7-fold range]" = "fold7", 
+                             "0.67 [25-fold range]" = "fold25" 
                              ), selected = "fold7"),
             selectizeInput(
                 'objectDrug', label = "Object Drug", choices = unique(estimates$Object),
@@ -84,7 +90,7 @@ ui <- fluidPage(
         
         mainPanel(
            plotlyOutput("plotInteractive"),
-           h3("Please click on create plot to generate plot.")
+           h3("Please click on create plot to generate the plot.")
         )
     )
 )
@@ -95,24 +101,24 @@ server <- function(input, output) {
     # Conditional display of base precipitant field based on plot type.
     output$basePrecipitant <- renderUI({
         if(input$plotType %in%  "volcano"){
-            selectizeInput('basePrecipitant', label = "Base Precipitant", choices = unique(estimates$Base_Precipitant),
+            selectizeInput('basePrecipitant', label = "Base-Pair Precipitant Drug", choices = unique(estimates$Base_Precipitant)[order(unique(estimates$Base_Precipitant))],
                            options = list(maxOptions = 500), multiple = FALSE)
         }
     })
     
     #  Functions to update options when options are changed.
     observeEvent(input$plotType, {
-        updateSelectizeInput(inputId = 'basePrecipitant', choices = unique(estimates$Base_Precipitant), options = list(maxOptions = 500))
+        updateSelectizeInput(inputId = 'basePrecipitant', choices = unique(estimates$Base_Precipitant)[order(unique(estimates$Base_Precipitant))], options = list(maxOptions = 500))
     })
     toListen <- reactive({
         list(input$outcome,input$estimateRange)
     })
     observeEvent(toListen(), {
-        updateSelectizeInput(inputId = 'basePrecipitant', choices = unique(estimates$Base_Precipitant[estimates$range %in% input$estimateRange & estimates$Outcome %in% input$outcome]), options = list(maxOptions = 500))
+        updateSelectizeInput(inputId = 'basePrecipitant', choices = unique(estimates$Base_Precipitant[estimates$range %in% input$estimateRange & estimates$Outcome %in% input$outcome])[order(unique(estimates$Base_Precipitant[estimates$range %in% input$estimateRange & estimates$Outcome %in% input$outcome]))], options = list(maxOptions = 500))
         updateSelectizeInput(inputId = 'objectDrug', choices = unique(estimates$Object[estimates$range %in% input$estimateRange & estimates$Outcome %in% input$outcome]), options = list(maxOptions = 500))
     })
     observeEvent(input$objectDrug, {
-        updateSelectizeInput(inputId = 'basePrecipitant', choices = unique(estimates$Base_Precipitant[estimates$range %in% input$estimateRange & estimates$Outcome %in% input$outcome & estimates$Object %in% input$objectDrug]), options = list(maxOptions = 500))
+        updateSelectizeInput(inputId = 'basePrecipitant', choices = unique(estimates$Base_Precipitant[estimates$range %in% input$estimateRange & estimates$Outcome %in% input$outcome & estimates$Object %in% input$objectDrug])[order(unique(estimates$Base_Precipitant[estimates$range %in% input$estimateRange & estimates$Outcome %in% input$outcome & estimates$Object %in% input$objectDrug]))], options = list(maxOptions = 500))
     })
     
     # Create data set to be used for plots based on options selected.
@@ -126,7 +132,7 @@ server <- function(input, output) {
             input$createPlot
             if(input$plotType %in% "volcano"){
                 isolate({
-                precipitantDrug <-  paste0(str_to_sentence(filteredDataVolcano()$Precipitant), ", Semi-Bayes Risk Ratio = ", round(filteredDataVolcano()$SB_RR, 2), ", 95% CI = (", round(filteredDataVolcano()$SB_RR_lower, 2), ", ", round(filteredDataVolcano()$SB_RR_upper,2),"), p = ", round(filteredDataVolcano()$pSB, 3))
+                precipitantDrug <-  paste0(str_to_sentence(filteredDataVolcano()$Precipitant), ", Semi-Bayes Rate Ratio = ", round(filteredDataVolcano()$SB_RR, 2), ", 95% CI = (", round(filteredDataVolcano()$SB_RR_lower, 2), ", ", round(filteredDataVolcano()$SB_RR_upper,2),"), p = ", round(filteredDataVolcano()$pSB, 3))
                 shinyCatch(createVolcanoPlot(filteredDataVolcano(), input$outcome, input$objectDrug, input$basePrecipitant, precipitantDrug), blocking_level = "warning", shiny = FALSE) # This allows us to stop execution and suppress warning messages in case of errors.
                 })
             }

@@ -12,6 +12,7 @@ library(readr)
 library(plotly)
 library(stringr)
 library(spsComps)
+library(colorspace)
 
 # Create a function for volcano plot creation
 createVolcanoPlot <- function(filteredData, outcome, objectDrug, basePrecipitant, `Precipitant Drug`){
@@ -39,23 +40,23 @@ renameOutcomes <- function(outcome){
     }
 }
 
-# Create a function to create heat maps
 createHeatMapPlot <- function(filteredData, outcome, objectDrug){
-    outcomeFormatted <- renameOutcomes(outcome)
-    filteredData <- dplyr::arrange(filteredData, Base_Precipitant, Precipitant)
-    titleText <- paste0("Heatmap of Adjusted Rate Ratios of ", str_to_title(outcomeFormatted), " for ", str_to_title(objectDrug), ", Base-Pair Precipitants, and Precipitants")
-    plot_ly(x = filteredData$Precipitant, y= filteredData$Base_Precipitant, 
-        z = round(filteredData$SB_RR, 2), 
-        type = "heatmap", 
-        colorscale= "RdBu",
-        showscale = TRUE, hoverinfo = 'text', width = 1000, height = 1000,
-        text = ~paste0("Precipitant: ", filteredData$Precipitant, "<br>", "Base-Pair Precipitant: ", 
-        filteredData$Base_Precipitant, "<br>", "Rate Ratio: ", round(filteredData$SB_RR, 2))) %>% 
-        layout(autosize = F, title = titleText, 
-        xaxis = list(title = "Precipitants"), yaxis = list(title = "Base-Pair Precipitants")) %>% colorbar(title = "Rate Ratio", limits = c(0.0, 10.0), 
-        tickvals = c(0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0), len = 1.1)
-                                                                                                
+    outcomeFormatted <- renameOutcomes(outcome) # I rename the outcomes from how they appear in the dataset to be more polished.
+    filteredData <- dplyr::arrange(filteredData, Base_Precipitant, Precipitant) # Sort the data so that the axes are alphabetical
+    titleText <- paste0("Heatmap of Adjusted Rate Ratios of ", str_to_title(outcomeFormatted), " for ", str_to_title(objectDrug), ", Base-Pair Precipitants, and Precipitants") # Create plot title
+    plot_ly(x = filteredData$Precipitant, y= filteredData$Base_Precipitant, # Sets the x and y-axes to the different Precipitants and Base-pair precipitants.
+            z = round(filteredData$SB_RR, 2), # This displays the rate ratio as the value for the square on the heat map map
+            type = "heatmap", 
+            colorscale= "RdBu", # Uses the color scale that is blue at the bottom, red at top, and white in the middle
+            showscale = TRUE, # Show the colorbar
+            hoverinfo = 'text', # display the text when you hover over a square
+            width = 1000, height = 1000, # Plot dimensions
+            text = ~paste0("Precipitant: ", filteredData$Precipitant, "<br>", "Base-Pair Precipitant: ", 
+                           filteredData$Base_Precipitant, "<br>", "Rate Ratio: ", round(filteredData$SB_RR, 2))) %>% # Text for hover text
+        layout(autosize = F, title = titleText, #create plot layout. The issue is with the colorbar.
+               xaxis = list(title = "Precipitants"), yaxis = list(title = "Base-Pair Precipitants")) %>% colorbar(title = "Rate Ratio", limits = c(0.0, 2.0),                                                                                                             tickvals = c(0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0), len = 1.1)
 }
+
 
 # Read in table with outcomes
 estimates <- read_csv("adjustedEstimatesProcessed.csv")

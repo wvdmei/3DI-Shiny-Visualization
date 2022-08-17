@@ -40,6 +40,8 @@ renameOutcomes <- function(outcome){
     }
 }
 
+# Create function for creating heatmaps
+
 createHeatMapPlot <- function(filteredData, outcome, objectDrug){
     outcomeFormatted <- renameOutcomes(outcome) # I rename the outcomes from how they appear in the dataset to be more polished.
     filteredData <- dplyr::arrange(filteredData, Base_Precipitant, Precipitant) # Sort the data so that the axes are alphabetical
